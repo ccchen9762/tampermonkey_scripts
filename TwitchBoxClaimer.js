@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Claim the stupid box
-// @version      2024-10-06
-// @description  bad twitch
+// @name         Twitch reward box claimer
+// @version      0.1.1
+// @description  click the box automatically when available
 // @author       moom9762
 // @match        https://www.twitch.tv/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=twitch.tv
@@ -12,14 +12,15 @@
     'use strict';
 
     function checkButton() {
-        var claimButton = document.evaluate('.//*[@aria-label="Claim Bonus"]', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        let claimButton = document.evaluate('.//*[@aria-label="Claim Bonus"]', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
 
         if (claimButton) {
-            console.log('[Info] claim button found.')
             claimButton.click();
+            console.log('(Box Claimer) [Info] Claim button clicked.');
         }
     }
 
     // check claim button every 10 seconds
     setInterval(checkButton, 10000);
+    console.log('(Box Claimer) [Info] Script started.');
 })();
