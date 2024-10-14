@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Fanbox Downloader
-// @version      0.2
+// @version      0.2.1
 // @description  Download post contents into single zip files
 // @author       moom9762
 // @match        https://www.fanbox.cc/@*/posts/*
@@ -32,9 +32,15 @@
                 onload: function(response) {
                     if (response.status === 200) {
                         const contentLength = response.responseHeaders.match(/content-length:(\d+)/);
-                        const contentLengthNum = parseInt(contentLength[1]);
-                        resolve(contentLengthNum);
-                        console.log(`(Fanbox Downloader) [Info] Image #${index} has size ${contentLengthNum}`);
+                        if(contentLength) {
+                            const contentLengthNum = parseInt(contentLength[1]);
+                            console.log(`(Fanbox Downloader) [Info] Image #${index} has size ${contentLengthNum}`);
+                            resolve(contentLengthNum);
+                        }
+                        else {
+                            console.log(`(Fanbox Downloader) [Info] Image #${index} has unknown content length.`);
+                            resolve(0);
+                        }
                     }
                     else {
                         reject();
@@ -73,6 +79,32 @@
                     }
                     else if(response.status === 200){
                         console.log(`(Fanbox Downloader) [Info] Image #${index} downloaded. (Total ${part+1} part(s))`);
+                        chunks.push(response.response);
+                        resolve();
+                    }
+                    else {
+                        console.log(`(Fanbox Downloader) [Error] Image #${index} reqeust respond with status ${response.status}.`);
+                        reject();
+                    }
+                },
+                onerror: function(e){
+                    console.error(`(Fanbox Downloader) [Error] Cannot download image #${index}, ${e}`);
+                    reject();
+                },
+            });
+        });
+    }
+
+    function RequestFullImage(url, index, chunks) {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: "GET",
+                url: url,
+                binary: true,
+                responseType: "blob",
+                onload: function(response) {
+                    if(response.status === 200){
+                        console.log(`(Fanbox Downloader) [Info] Image #${index} downloaded. (Total 1 part(s))`);
                         chunks.push(response.response);
                         resolve();
                     }
@@ -141,7 +173,12 @@
 
                         const contentLengthNum = await GetImageSize(url, index);
 
-                        await RequestImage(url, index, 0, chunks, contentLengthNum);
+                        if(contentLengthNum !== 0) {
+                            await RequestImage(url, index, 0, chunks, contentLengthNum);
+                        }
+                        else {
+                            await RequestFullImage(url, index, chunks);
+                        }
 
                         await new Promise((resolve, reject) => {
                             if(chunks.length === 0){
