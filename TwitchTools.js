@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Tools
-// @version      0.3.0
-// @description  list of tools improve twitch ux | v0.1.0 auto click reward box | v0.2.0 disable data saving feature | v0.3.0 add responsive chat feature
+// @version      0.3.1
+// @description  list of tools improve twitch ux
 // @author       ccchen9762
 // @match        https://www.twitch.tv/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=twitch.tv
@@ -34,20 +34,59 @@
     /* ========== Disable visibility state changes so twitch won't lower video quality ========== */
 
     // Override visibility properties
-    /*Object.defineProperty(document, 'hidden', { value: false, writable: false });
+    Object.defineProperty(document, 'hidden', { value: false, writable: false });
     Object.defineProperty(document, 'visibilityState', { value: 'visible', writable: false });
     Object.defineProperty(document, 'webkitVisibilityState', { value: 'visible', writable: false });
 
     // Prevent visibility change events (for modern sites)
     document.hasFocus = function() { return true; };
-    window.addEventListener('visibilitychange', function(e) {
+    /*window.addEventListener('visibilitychange', function(e) {
         e.preventDefault();
         e.stopPropagation();
     }, true);*/
 
 
     /* ========== Swap chat and info section when window becomes portrait mode ========== */
+    /* grid-template-columns: left column's width, middle takes remaining, right column's width */
+    /* grid-template-rows */
+    const reorderCSS = `
+        .main-container {
+            display: grid !important;
+            grid-template-columns: auto 1fr;
+            grid-template-rows: auto 1fr;
+        }
+        .left-col {
+            grid-column: 1;
+            grid-row: 1 / span 2;
+        }
+        .middle-col {
+            grid-column: 2;
+            grid-row: 1;
+        }
+        .right-col {
+            grid-column: 2;
+            grid-row: 2;
+            width: 100% !important;
+            height: 100%;
+
+            display: flex;
+            flex-direction: column;
+        }
+        .info-div {
+            display: none !important;
+        }
+        .chat-div{
+            width: 100% !important;
+        }
+    `;
+
+    const reorderStyle = document.createElement('style');
+    reorderStyle.type = 'text/css';
+    reorderStyle.appendChild(document.createTextNode(reorderCSS));
+    document.head.appendChild(reorderStyle);
+
     let chatSwapped = false; // param recording swapping status
+    let chatOffset = null;
 
     // tab switching etc.
     window.addEventListener('visibilitychange', function(e) {
@@ -60,43 +99,31 @@
         checkWindowRatio();
     });
 
-    function elementsExist(topNav, streamElement, streamInfoElement, infoDiv, chatDiv){
-        if (!topNav){
-            console.log('(Twitch tool) [Error] Top nav bar not found');
-            return false;
+    async function checkWindowRatio() {
+        const mainContainer = document.getElementsByClassName('ebWabz')[0];
+
+        if(!mainContainer){
+            console.log('(Twitch tool) [Error] Main container not found');
+            return;
         }
-        if (!streamElement){
-            console.log('(Twitch tool) [Error] Stream element not found');
-            return false;
-        }
-        if(!streamInfoElement){
-            console.log('(Twitch tool) [Error] Stream info element not found');
-            return false;
-        }
-        if (!infoDiv){
-            console.log('(Twitch tool) [Error] info div not found');
-            return false;
+
+        const leftCol = mainContainer.children[0];
+        const middleCol = mainContainer.children[1];
+        const rightCol = mainContainer.children[2];
+        const infoDiv = document.getElementsByClassName('channel-info-content')[0].children[1];
+        const chatDiv = document.getElementsByClassName('channel-root__right-column')[0];
+        const chatShell = document.getElementsByClassName('chat-shell')[0];
+
+        if(!infoDiv){
+            console.log('(Twitch tool) [Error] Channel info not found');
+            return;
         }
         if(!chatDiv){
-            console.log('(Twitch tool) [Error] chat div not found');
-            return false;
+            console.log('(Twitch tool) [Error] Chat not found');
+            return;
         }
-
-        return true;
-    }
-
-    async function checkWindowRatio() {
-        // Expand right column before action happens
-        const expandButton = document.querySelector('button[aria-label="Expand Chat"]');
-        expandButton.click();
-
-        const topNav = document.getElementsByClassName('top-nav')[0];
-        const streamElement = document.getElementsByClassName('persistent-player')[0];
-        const streamInfoElement = document.getElementById('live-channel-stream-information');
-        const infoDiv = document.getElementsByClassName('channel-info-content')[0].children[1];
-        const chatDiv = document.getElementsByClassName('channel-root__right-column')[0].children[0];
-
-        if(!elementsExist(topNav, streamElement, streamInfoElement, infoDiv, chatDiv)){
+        if(!chatShell){
+            console.log('(Twitch tool) [Error] Chat shell not found');
             return;
         }
 
@@ -104,81 +131,66 @@
         console.log(`(Twitch tool) [Debug] Window ratio changed to ${windowRatio}`);
 
         if (windowRatio < 1) {
-            await new Promise(resolve => setTimeout(resolve, 200));
-
-            // Swap elements if not already
             if(!chatSwapped){
-                swapDiv(infoDiv, chatDiv);
-                let chatContent = document.getElementsByClassName('chat-shell')[0].children[0];
-                chatContent.style.width='100%';
-                chatSwapped = true;
-
                 // Collapse right column when swithcing to portrait mode
+                chatOffset = getComputedStyle(chatDiv).transform;
+
                 const collapseButton = document.querySelector('button[aria-label="Collapse Chat"]');
-                collapseButton.click();
+                if(collapseButton){
+                    collapseButton.click();
+
+                    await new Promise(resolve => setTimeout(resolve, 200));
+
+                    rightCol.children[0].classList.remove('ieZICN');
+                    rightCol.children[0].classList.add('eOzPrw');
+
+                    rightCol.children[0].children[1].classList.remove('iLMtDH');
+                    rightCol.children[0].children[1].classList.add('gYVLVA');
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 200));
+
+                mainContainer.classList.add('main-container');
+                leftCol.classList.add('left-col');
+                middleCol.classList.add('middle-col');
+                rightCol.classList.add('right-col');
+                infoDiv.classList.add('info-div');
+                chatDiv.classList.add('chat-div', 'channel-root__right-column--expanded');
+                chatDiv.style.setProperty('transform', 'none');
+                chatShell.classList.add('chat-shell__expanded');
+
+                chatSwapped = true;
             }
-
-            // Adjust height of chat element
-            await new Promise(resolve => setTimeout(resolve, 200));
-
-            const topNavHeight = topNav.offsetHeight;
-            const streamheight = streamElement.offsetHeight;
-            const streamInfoheight = streamInfoElement.offsetHeight;
-
-            // Remove style if not already
-            let removeStyleElement = document.getElementById('height-override');
-            if (removeStyleElement && removeStyleElement.parentNode) {
-                removeStyleElement.parentNode.removeChild(removeStyleElement);
-                removeStyleElement = null;
-            }
-
-            // Override height property
-            let overrideStyleElement = document.createElement('style');
-            overrideStyleElement.id = 'height-override';
-            overrideStyleElement.textContent = `
-            .chat-shell {
-                height: calc(100vh - ${topNavHeight}px - ${streamheight}px - ${streamInfoheight}px) !important;
-                display: flex;
-            }`;
-            document.head.appendChild(overrideStyleElement);
 
             console.log('(Twitch tool) [Info] Chat swapped to portrait mode');
-        } 
+        }
         else if (windowRatio >= 1 && chatSwapped) {
-            await new Promise(resolve => setTimeout(resolve, 200));
+            if(chatSwapped){
+                const expandButton = document.querySelector('button[aria-label="Expand Chat"]');
+                if(expandButton){
+                    rightCol.children[0].classList.remove('eOzPrw');
+                    rightCol.children[0].classList.add('ieZICN');
 
-            swapDiv(chatDiv, infoDiv);
-            let chatContent = document.getElementsByClassName('chat-shell')[0].children[0];
-            chatContent.style.width='';
+                    rightCol.children[0].children[1].classList.remove('gYVLVA');
+                    rightCol.children[0].children[1].classList.add('iLMtDH');
 
-            // Remove style
-            let removeStyleElement = document.getElementById('height-override');
-            if (removeStyleElement && removeStyleElement.parentNode) {
-                removeStyleElement.parentNode.removeChild(removeStyleElement);
-                removeStyleElement = null;
+                    expandButton.click();
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 300));
+
+                mainContainer.classList.remove('main-container');
+                leftCol.classList.remove('left-col');
+                middleCol.classList.remove('middle-col');
+                rightCol.classList.remove('right-col');
+                infoDiv.classList.remove('info-div');
+                chatDiv.classList.remove('chat-div');
+                chatDiv.style.setProperty('transform', chatOffset);
+
+                chatSwapped = false;
             }
 
-            chatSwapped = false;
             console.log('(Twitch tool) [Info] Chat restored to landscape mode');
-        }
-    }
-
-    function swapDiv(div1, div2){
-        const div1Parent = div1.parentNode;
-        const div1Sibling = div1.nextSibling;
-        const div2Parent = div2.parentNode;
-        const div2Sibling = div2.nextSibling;
-
-        if (div1Sibling) {
-            div1Parent.insertBefore(div2, div1Sibling);
-        } else {
-            div1Parent.appendChild(div2);
-        }
-
-        if (div2Sibling) {
-            div2Parent.insertBefore(div1, div2Sibling);
-        } else {
-            div2Parent.appendChild(div1);
         }
     }
 
