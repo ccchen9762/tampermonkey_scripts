@@ -77,15 +77,13 @@
 
     const rootDiv = document.getElementById('root');
     if(!rootDiv){
-        console.log('(Twitch tool) [Error] Channel info not found');
+        console.log('(Twitch tool) [Error] Channel info not found.');
     }
 
     const mainContainer = rootDiv.children[0].children[0].children[1];
-
     const leftCol = mainContainer.children[0];
     const middleCol = mainContainer.children[1];
     const rightCol = mainContainer.children[2];
-
     mainContainer.classList.add('main-container');
     leftCol.classList.add('left-col');
     middleCol.classList.add('middle-col');
@@ -96,21 +94,20 @@
 
     async function checkWindowRatio() {
 
-        const infoDiv = document.getElementsByClassName('channel-info-content')[0].children[1];
+        const channelInfo = document.getElementsByClassName('channel-info-content')[0];
+        if(!channelInfo){
+            console.log('(Twitch tool) [Error] Channel info not found.');
+            return;
+        }
         const chatDiv = document.getElementsByClassName('channel-root__right-column')[0];
-
-        if(!infoDiv){
-            console.log('(Twitch tool) [Error] Channel info not found');
-            return;
-        }
         if(!chatDiv){
-            console.log('(Twitch tool) [Error] Chat not found');
+            console.log('(Twitch tool) [Error] Chat not found.');
             return;
         }
+        const infoDiv = channelInfo.children[1];
 
         const windowRatio = window.innerWidth / window.innerHeight;
         //console.log(`(Twitch tool) [Debug] Window ratio changed to ${windowRatio}`);
-
         if (windowRatio < 1) {
             if(!portraitMode){
                 chatOffset = getComputedStyle(chatDiv).transform;
@@ -139,25 +136,32 @@
                 portraitMode = true;
             }
 
+            await new Promise(resolve => setTimeout(resolve, 100));
+
             const topNav = document.getElementsByClassName('top-nav')[0];
             const streamElement = document.getElementsByClassName('persistent-player')[0];
             const streamInfoElement = document.getElementById('live-channel-stream-information');
+            const sideNav = document.getElementsByClassName('side-nav__scrollable_content')[0];
             const chatShellElement = document.getElementsByClassName('chat-shell')[0];
 
             if(!topNav){
-                console.log('(Twitch tool) [Error] Top nav not found');
+                console.log('(Twitch tool) [Error] Top nav not found.');
                 return;
             }
             if(!streamElement){
-                console.log('(Twitch tool) [Error] Stream not found');
+                console.log('(Twitch tool) [Error] Stream not found.');
                 return;
             }
             if(!streamInfoElement){
-                console.log('(Twitch tool) [Error] Stream info not found');
+                console.log('(Twitch tool) [Error] Stream info not found.');
+                return;
+            }
+            if(!sideNav){
+                console.log('(Twitch tool) [Error] Side nav not found.');
                 return;
             }
             if(!chatShellElement){
-                console.log('(Twitch tool) [Error] Chat shell not found');
+                console.log('(Twitch tool) [Error] Chat shell not found.');
                 return;
             }
 
@@ -165,7 +169,10 @@
             const streamHeight = streamElement.offsetHeight;
             const streamInfoHeight = streamInfoElement.offsetHeight;
 
+            const sideNavWidth = sideNav.offsetWidth;
+
             chatShellElement.style.setProperty('height', `calc(100vh - ${topNavHeight}px - ${streamHeight}px - ${streamInfoHeight}px)`, 'important');
+            chatShellElement.style.setProperty('width', `calc(100vw - ${sideNavWidth}px)`, 'important');
 
             console.log('(Twitch tool) [Info] Chat switched to portrait mode');
         }
@@ -186,8 +193,15 @@
                 portraitMode = false;
             }
 
+            await new Promise(resolve => setTimeout(resolve, 100));
+
             const chatShellElement = document.getElementsByClassName('chat-shell')[0];
+            if(!chatShellElement){
+                console.log('(Twitch tool) [Error] Chat shell not found.');
+                return;
+            }
             chatShellElement.style.setProperty('height', '100%');
+            chatShellElement.style.setProperty('width', '100%');
 
             console.log('(Twitch tool) [Info] Chat restored to landscape mode');
         }
@@ -208,11 +222,11 @@
         // If the DOM is not yet loaded, wait for DOMContentLoaded
         document.addEventListener('DOMContentLoaded', function(e) {
         console.log('(Twitch tool) [Info] DOMContentLoaded.');
-        setTimeout(checkWindowRatio, 500);
+        setTimeout(checkWindowRatio, 2000);
     });
     } else {
         console.log('(Twitch tool) [Info] Document already loaded.');
-        setTimeout(checkWindowRatio, 500);
+        setTimeout(checkWindowRatio, 2000);
     }
 
     console.log('(Twitch tool) [Info] Script started.');
