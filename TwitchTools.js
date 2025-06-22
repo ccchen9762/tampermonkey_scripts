@@ -1,17 +1,15 @@
 // ==UserScript==
 // @name         Twitch Tools
 // @version      0.3.1
-// @description  list of tools improve twitch ux
+// @description  List of tools for improving Twitch UX: 1. Auto claim bonus. 2. Prevent data saving mechanisms. 3. Provide portraint mode chatting.
 // @author       ccchen9762
 // @match        https://www.twitch.tv/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=twitch.tv
-// @grant        GM_addStyle
+// @grant        none
 // ==/UserScript==
 
 (function() {
     'use strict';
-
-    // twitch chat button cannot be clicked
 
     /* ========== Click claim button & support streamer button when available, checks periodically  ========== */
     function checkButton() {
@@ -40,15 +38,9 @@
 
     // Prevent visibility change events (for modern sites)
     document.hasFocus = function() { return true; };
-    /*window.addEventListener('visibilitychange', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }, true);*/
 
-
-    /* ========== Swap chat and info section when window becomes portrait mode ========== */
+    /* ========== Move chat under stream and hide info section when window becomes portrait mode ========== */
     /* grid-template-columns: left column's width, middle takes remaining, right column's width */
-    /* grid-template-rows */
     const reorderCSS = `
         .main-container {
             display: grid !important;
@@ -67,10 +59,6 @@
             grid-column: 2;
             grid-row: 2;
             width: 100% !important;
-            height: 100%;
-
-            display: flex;
-            flex-direction: column;
         }
         .info-div {
             display: none !important;
@@ -85,8 +73,8 @@
     reorderStyle.appendChild(document.createTextNode(reorderCSS));
     document.head.appendChild(reorderStyle);
 
-    let chatSwapped = false; // param recording swapping status
-    let chatOffset = null;
+    let portraitMode = false;
+    let chatOffset = null; // store the chat initial position style offset
 
     // tab switching etc.
     window.addEventListener('visibilitychange', function(e) {
@@ -100,7 +88,7 @@
     });
 
     async function checkWindowRatio() {
-        const mainContainer = document.getElementsByClassName('ebWabz')[0];
+        const mainContainer = document.getElementById('root').children[0].children[0].children[1];
 
         if(!mainContainer){
             console.log('(Twitch tool) [Error] Main container not found');
@@ -112,7 +100,6 @@
         const rightCol = mainContainer.children[2];
         const infoDiv = document.getElementsByClassName('channel-info-content')[0].children[1];
         const chatDiv = document.getElementsByClassName('channel-root__right-column')[0];
-        const chatShell = document.getElementsByClassName('chat-shell')[0];
 
         if(!infoDiv){
             console.log('(Twitch tool) [Error] Channel info not found');
@@ -122,25 +109,22 @@
             console.log('(Twitch tool) [Error] Chat not found');
             return;
         }
-        if(!chatShell){
-            console.log('(Twitch tool) [Error] Chat shell not found');
-            return;
-        }
 
         const windowRatio = window.innerWidth / window.innerHeight;
-        console.log(`(Twitch tool) [Debug] Window ratio changed to ${windowRatio}`);
+        //console.log(`(Twitch tool) [Debug] Window ratio changed to ${windowRatio}`);
 
         if (windowRatio < 1) {
-            if(!chatSwapped){
-                // Collapse right column when swithcing to portrait mode
+            if(!portraitMode){
                 chatOffset = getComputedStyle(chatDiv).transform;
 
+                // Collapse right column to expand stream to the very right
                 const collapseButton = document.querySelector('button[aria-label="Collapse Chat"]');
                 if(collapseButton){
                     collapseButton.click();
 
-                    await new Promise(resolve => setTimeout(resolve, 200));
+                    await new Promise(resolve => setTimeout(resolve, 100)); // wait for layout collapse
 
+                    // Keeps the chat visible while in collapse status
                     rightCol.children[0].classList.remove('ieZICN');
                     rightCol.children[0].classList.add('eOzPrw');
 
@@ -148,7 +132,7 @@
                     rightCol.children[0].children[1].classList.add('gYVLVA');
                 }
 
-                await new Promise(resolve => setTimeout(resolve, 200));
+                await new Promise(resolve => setTimeout(resolve, 100));
 
                 mainContainer.classList.add('main-container');
                 leftCol.classList.add('left-col');
@@ -157,28 +141,14 @@
                 infoDiv.classList.add('info-div');
                 chatDiv.classList.add('chat-div', 'channel-root__right-column--expanded');
                 chatDiv.style.setProperty('transform', 'none');
-                chatShell.classList.add('chat-shell__expanded');
 
-                chatSwapped = true;
+                portraitMode = true;
             }
 
-            console.log('(Twitch tool) [Info] Chat swapped to portrait mode');
+            console.log('(Twitch tool) [Info] Chat switched to portrait mode');
         }
-        else if (windowRatio >= 1 && chatSwapped) {
-            if(chatSwapped){
-                const expandButton = document.querySelector('button[aria-label="Expand Chat"]');
-                if(expandButton){
-                    rightCol.children[0].classList.remove('eOzPrw');
-                    rightCol.children[0].classList.add('ieZICN');
-
-                    rightCol.children[0].children[1].classList.remove('gYVLVA');
-                    rightCol.children[0].children[1].classList.add('iLMtDH');
-
-                    expandButton.click();
-                }
-
-                await new Promise(resolve => setTimeout(resolve, 300));
-
+        else if (windowRatio >= 1) {
+            if(portraitMode){
                 mainContainer.classList.remove('main-container');
                 leftCol.classList.remove('left-col');
                 middleCol.classList.remove('middle-col');
@@ -187,7 +157,15 @@
                 chatDiv.classList.remove('chat-div');
                 chatDiv.style.setProperty('transform', chatOffset);
 
-                chatSwapped = false;
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                const expandButton = document.querySelector('button[aria-label="Expand Chat"]');
+                if(expandButton){
+                    // No need to restore the class status, expand function magically don't care.
+                    expandButton.click();
+                }
+
+                portraitMode = false;
             }
 
             console.log('(Twitch tool) [Info] Chat restored to landscape mode');
