@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Tools
 // @version      0.3.1
-// @description  List of tools for improving Twitch UX: 1. Auto claim bonus. 2. Prevent data saving mechanisms. 3. Provide portraint mode chatting.
+// @description  List of tools for improving Twitch UX: 1. Auto claim bonus. 2. Prevent data saving mechanisms. 3. Provide portraint mode chatting. 4. Hide recommendation channels
 // @author       ccchen9762
 // @match        https://www.twitch.tv/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=twitch.tv
@@ -110,6 +110,13 @@
         //console.log(`(Twitch tool) [Debug] Window ratio changed to ${windowRatio}`);
         if (windowRatio < 1) {
             if(!portraitMode){
+                // Expand to ensure the chat functions are loaded
+                const expandButton = document.querySelector('button[aria-label="Expand Chat"]');
+                if(expandButton){
+                    expandButton.click();
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+
                 chatOffset = getComputedStyle(chatDiv).transform;
 
                 // Collapse right column to expand stream to the very right
@@ -207,6 +214,21 @@
         }
     }
 
+    /* ========== Hide live channels ========== */
+    function hideLiveChannels(){
+        const liveChannels = document.querySelector('div[aria-label="Live Channels"]');
+        const alsoWatch = liveChannels.nextSibling;
+        if(liveChannels){
+            liveChannels.style.setProperty('display', 'none', 'important');
+            alsoWatch.style.setProperty('display', 'none', 'important');
+            console.log('(Twitch tool) [Info] Recommendation channels are hidden.');
+        }
+        else{
+            console.log('(Twitch tool) [Info] Live channels not found.');
+        }
+    }
+
+    /* ========== Event Listeners ========== */
     // tab switching etc.
     window.addEventListener('visibilitychange', function(e) {
         console.log('(Twitch tool) [Info] Visibility changed');
@@ -223,10 +245,12 @@
         document.addEventListener('DOMContentLoaded', function(e) {
         console.log('(Twitch tool) [Info] DOMContentLoaded.');
         setTimeout(checkWindowRatio, 2000);
+        setTimeout(hideLiveChannels, 2000);
     });
     } else {
         console.log('(Twitch tool) [Info] Document already loaded.');
         setTimeout(checkWindowRatio, 2000);
+        setTimeout(hideLiveChannels, 2000);
     }
 
     console.log('(Twitch tool) [Info] Script started.');
